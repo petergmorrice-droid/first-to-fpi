@@ -66,6 +66,8 @@ body{background:var(--ink);color:var(--paper);font-family:var(--body);padding-in
 #hint button{background:rgba(255,255,255,.08);border:2px solid #5A6C99;border-radius:999px;color:#fff;font:inherit;font-weight:700;font-size:13px;cursor:pointer;padding:6px 14px}
 #hint button:hover{background:rgba(255,255,255,.18)}
 #exitg{color:#FFB4A8;border-color:#C9665A}
+.card .back{align-self:flex-start;font-weight:700;font-size:14px;color:var(--teal-d);text-decoration:none}
+.card .back:hover{text-decoration:underline}
 @media (pointer:coarse){#pad{display:flex}#hint .keys{display:none}}
 @media (prefers-reduced-motion:reduce){.btn:active{transform:none}}
 #lobbybar{background:var(--ink2);border-radius:16px;padding:10px 14px;display:flex;flex-direction:column;gap:8px}
