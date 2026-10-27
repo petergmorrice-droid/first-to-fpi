@@ -1193,7 +1193,6 @@ function showTitle(){state.screen='title';showCap(INTRO_CAP);SKIP.hidden=true;le
    <label>Team room code<input id="rc" maxlength="24" autocomplete="off" value="${esc(cd)}" placeholder="for example eu-team"></label></div>
   <p id="err" class="bad" hidden></p>
   <div class="row"><button class="btn alt" data-a="join" type="button">Join team room</button><button class="btn" data-a="solo" type="button">Play solo</button></div>
-  <p style="text-align:left">New: <a href="tower.html" style="color:#4A31D1;font-weight:700">UAT Tower</a>, a team game where you fix as many findings as you can.</p>
 </div>`)}
 
 function readForm(){const nm=(document.getElementById('nm').value||'').trim().slice(0,16)||'Player';
