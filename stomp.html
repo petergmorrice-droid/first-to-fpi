@@ -38,16 +38,16 @@ const PLATS=[{x0:0,x1:240,y:318},{x0:560,x1:800,y:318},{x0:0,x1:96,y:226},{x0:22
 const PIPE=58,TOPY=134;
 const WAVES=[
   {name:'UAT Round 1',col:'#FFC83D',types:[0],n:p=>6+Math.round(p),crit:p=>0,sp:1,
-   head:'Typos are crawling out of the findings pipes.',how:'Land on a finding to squash it. Quick stomps in a row build a combo.',real:'In UAT (user acceptance testing) the study team tests the eCOA system and logs every typo in the patient questionnaires.'},
+   head:'Typos are crawling out of the findings pipes.',how:'Land on a finding to squash it. Quick stomps in a row build a combo.'},
   {name:'UAT Round 2',col:'#46D6C4',types:[0,1],n:p=>7+Math.round(p*1.2),crit:p=>1+Math.floor(p/4),sp:1.07,
-   head:'Broken skip logic joins the typos, and the first critical findings arrive.',how:'Critical findings are big and purple and take two stomps.',real:'Skip logic decides which question a patient sees next. When it breaks, patients see the wrong questions.'},
+   head:'Broken skip logic joins the typos, and the first critical findings arrive.',how:'Critical findings are big and purple and take two stomps.'},
   {name:'Site Training',col:'#9783FF',types:[0,1,2],n:p=>8+Math.round(p*1.4),crit:p=>2+Math.floor(p/3),sp:1.14,
-   head:'"Alarm will not fire" bugs are loose while the sites are trained.',how:'Grab coffee for a speed boost and a compliance coin for a short shield.',real:'Sites are trained on the eCOA devices before go-live. Alarms remind patients to complete their diaries.'},
+   head:'"Alarm will not fire" bugs are loose while the sites are trained.',how:'Grab coffee for a speed boost and a compliance coin for a short shield.'},
   {name:'Go-Live',col:'#FF6B9A',types:[0,1,2],n:p=>9+Math.round(p*1.6),crit:p=>3+Math.floor(p/2),sp:1.2,
-   head:'Everything is loose and moving fast. Clear it all to unlock go-live.',how:'Stomping another player bounces you high, but watch out for your own head.',real:'Go-live is when the eCOA system is switched on for real patients.'}];
-const BOSS_CAP={name:'Protocol Amendment',col:'#FF5436',head:'A protocol amendment has landed just before go-live. Nobody can squash it alone.',how:'Everyone pile on! Every stomp chips it down.',real:'A protocol amendment changes the study plan, so the eCOA system has to be updated to match.'};
-const LIVE_CAP={name:'Go live!',col:'#12A594',head:'The amendment is squashed and the eCOA system is live.',how:'Great teamwork.',real:'After go-live, sites can enrol patients and start collecting eCOA data.'};
-const INTRO_CAP={name:'Stomp the Findings',col:'#FFC83D',head:'UAT findings are loose on the platforms. Squash them together and take the study live.',how:'Jump on findings to stomp them. Whoever squashes the most findings wins.',real:'UAT is when the study team tests the eCOA system before patients use it.'};
+   head:'Everything is loose and moving fast. Clear it all to unlock go-live.',how:'Stomping another player bounces you high, but watch out for your own head.'}];
+const BOSS_CAP={name:'Protocol Amendment',col:'#FF5436',head:'A protocol amendment has landed just before go-live. Nobody can squash it alone.',how:'Everyone pile on! Every stomp chips it down.'};
+const LIVE_CAP={name:'Go live!',col:'#12A594',head:'The amendment is squashed and the eCOA system is live.',how:'Great teamwork.'};
+const INTRO_CAP={name:'Stomp the Findings',col:'#FFC83D',head:'UAT findings are loose on the platforms. Squash them together and take the study live.',how:'Jump on findings to stomp them. Whoever squashes the most findings wins.'};
 const TYPOS=['teh','recieve','pateint','diarry','qestion','scroe','paine'];
 const BOTS=[['Priya','#FF7AA8'],['Marco','#FFB02E'],['Aiko','#7B61FF'],['Lena','#2EC4B6'],['Sam','#FF6B4A']];
 const BOT_W=.6;
@@ -65,9 +65,6 @@ const ord=n=>['1st','2nd','3rd'][n-1]||n+'th';
 function flash(msg,col){state.toast={msg,col,t:2}}
 function setOv(html,clear){OV.className=clear?'clear':'';OV.innerHTML=html}
 function showCap(c){CAP.hidden=false;CAP.style.borderLeftColor=c.col||'#FFC83D';CAP.innerHTML=`<b>${esc(c.name)}</b><span>${esc(c.how)}</span>`}
-/* after the game, one calm panel explains what each wave stands for */
-function showRealCap(){CAP.hidden=false;CAP.style.borderLeftColor=C.teal;
-  CAP.innerHTML=`<b>What the waves mean in real life</b>${WAVES.concat([BOSS_CAP]).map(c=>`<em><strong>${esc(c.name)}:</strong> ${esc(c.real)}</em>`).join('')}`}
 
 /* ---------- arena physics, shared by avatars and findings ---------- */
 const wrapX=(x,w)=>{const c=x+w/2;return c<0?x+W:c>=W?x-W:x};
@@ -472,7 +469,7 @@ function standings(){const S=G?G.S:{},T=G?G.T:{},rows=[{name:myName||'You',pid:m
   if(room)for(const g of ghostMap.values())if((g.st==='play'||g.st==='res')&&g.gid===(G&&G.gid))rows.push({name:g.name,pid:g.pid,sc:S[g.pid]!==undefined?S[g.pid]:g.fsc,lk:g});
   const tt=r=>T[r.pid]===undefined?9e9:T[r.pid];
   return rows.sort((a,b)=>b.sc-a.sc||tt(a)-tt(b)||(a.name<b.name?-1:1))}
-function showResult(){state.screen='result';showRealCap();resRows=standings();const mi=resRows.findIndex(r=>r.me),blk=podiumBlocks();resBots=[];SFX.win();
+function showResult(){state.screen='result';CAP.hidden=true;resRows=standings();const mi=resRows.findIndex(r=>r.me),blk=podiumBlocks();resBots=[];SFX.win();
   let sx=130+Math.random()*60;if(mi>=0&&mi<3)sx=(blk[mi].x0+blk[mi].x1)/2-14;
   lob={x:sx,y:(mi>=0&&mi<3?blk[mi].top:GY)-38,w:28,h:38,vx:0,vy:0,onG:true,face:1,stun:0,inv:0,respawn:0,out:false,fin:false,walk:0,em:0,emT:0,name:myName,col:myCol,hat:look.h,gl:look.g,eye:look.y,fit:look.o,pat:look.p,shoe:look.l};
   let fl=0;resRows.forEach((r,i)=>{if(r.me||!r.lk||r.lk.ghost)return;const b=i<3?blk[i]:null,bx=b?(b.x0+b.x1)/2-14:610+(fl++%4)*45;
