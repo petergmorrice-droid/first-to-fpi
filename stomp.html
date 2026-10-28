@@ -44,10 +44,10 @@ const WAVES=[
   {name:'Site Training',col:'#9783FF',types:[0,1,2],n:p=>8+Math.round(p*1.4),crit:p=>2+Math.floor(p/3),sp:1.14,
    head:'"Alarm will not fire" bugs are loose while the sites are trained.',how:'Grab coffee for a speed boost and a compliance coin for a short shield.',real:'Sites are trained on the eCOA devices before go-live. Alarms remind patients to complete their diaries.'},
   {name:'Go-Live',col:'#FF6B9A',types:[0,1,2],n:p=>9+Math.round(p*1.6),crit:p=>3+Math.floor(p/2),sp:1.2,
-   head:'Everything is loose and moving fast. Clear it all to unlock go-live.',how:'Stomp other players to steal a point, but watch out for your own head.',real:'Go-live is when the eCOA system is switched on for real patients.'}];
+   head:'Everything is loose and moving fast. Clear it all to unlock go-live.',how:'Stomping another player bounces you high, but watch out for your own head.',real:'Go-live is when the eCOA system is switched on for real patients.'}];
 const BOSS_CAP={name:'Protocol Amendment',col:'#FF5436',head:'A protocol amendment has landed just before go-live. Nobody can squash it alone.',how:'Everyone pile on! Every stomp chips it down.',real:'A protocol amendment changes the study plan, so the eCOA system has to be updated to match.'};
 const LIVE_CAP={name:'Go live!',col:'#12A594',head:'The amendment is squashed and the eCOA system is live.',how:'Great teamwork.',real:'After go-live, sites can enrol patients and start collecting eCOA data.'};
-const INTRO_CAP={name:'Stomp the Findings',col:'#FFC83D',head:'UAT findings are loose on the platforms. Squash them together and take the study live.',how:'Jump on findings to stomp them. Touch one from the side and you are knocked down for a second.',real:'UAT is when the study team tests the eCOA system before patients use it.'};
+const INTRO_CAP={name:'Stomp the Findings',col:'#FFC83D',head:'UAT findings are loose on the platforms. Squash them together and take the study live.',how:'Jump on findings to stomp them. Whoever squashes the most findings wins.',real:'UAT is when the study team tests the eCOA system before patients use it.'};
 const TYPOS=['teh','recieve','pateint','diarry','qestion','scroe','paine'];
 const BOTS=[['Priya','#FF7AA8'],['Marco','#FFB02E'],['Aiko','#7B61FF'],['Lena','#2EC4B6'],['Sam','#FF6B4A']];
 const BOT_W=.6;
@@ -114,17 +114,18 @@ function stepBoss(B,dt){
   B.x+=B.vx*dt;if(B.x<PIPE+10){B.x=PIPE+10;B.dir=1}if(B.x+B.w>W-PIPE-10){B.x=W-PIPE-10-B.w;B.dir=-1}}
 
 /* ---------- the game state the host runs and sends out ---------- */
-function newGame(gid){return{gid,w:0,ph:'ban',pt:6,tot:0,crit:0,sp:0,kc:0,tk:0,spd:58,max:4,nid:1,st:0,E:[],B:null,P:[],pst:8,S:{},K:[],bar:0,bhit:{},imm:{},hitters:{},bl:0,n:1}}
+function newGame(gid){return{gid,w:0,ph:'ban',pt:6,tot:0,crit:0,sp:0,kc:0,tk:0,spd:58,max:4,nid:1,st:0,E:[],B:null,P:[],pst:8,S:{},K:[],bar:0,bhit:{},imm:{},bl:0,n:1,ck:0,T:{}}}
 function playerCount(){if(!room)return 1+bots.length*BOT_W;if(state.t<2)return G.np||1;let n=1;for(const g of ghostMap.values())if(g.st==='play'&&g.gid===G.gid)n++;return n}
 function amHost(){if(!room)return true;if(!G)return false;for(const g of ghostMap.values())if(g.st==='play'&&g.gid===G.gid&&g.j<myJoin)return false;
   /* until everyone's presence says they are in the game, trust who was earliest in the waiting room */
   return !(state.t<2&&G.hostJ<myJoin)}
 function startWave(i){const wv=WAVES[i],p=playerCount();G.w=i;G.n=p;G.tot=wv.n(p);G.crit=Math.min(G.tot,wv.crit(p));G.sp=0;G.kc=0;G.spd=58*wv.sp;G.max=Math.min(8,2+i+Math.ceil(p*.25));G.ph='ban';G.pt=i?3.5:6;G.st=0}
 function spawnEnemy(t,crit){const e=mkEnemy(G.nid++,t,crit);e.hid=.5;e.side=e.id%2;G.E.push(e);return e}
-function addScore(pid,n){G.S[pid]=Math.max(0,(G.S[pid]||0)+n)}
+/* your score is the number of findings you squashed; ties go to whoever got there first */
+function addScore(pid){G.S[pid]=(G.S[pid]||0)+1;G.T[pid]=+G.ck.toFixed(2)}
 function pushK(k){G.K.push(k);fx(k)}
 function hostTick(dt){
-  G.pt-=dt;const wv=WAVES[G.w];
+  G.pt-=dt;G.ck+=dt;const wv=WAVES[G.w];
   if(G.ph==='ban'){if(G.pt<=0)G.ph='wave'}
   else if(G.ph==='wave'){G.st-=dt;
     if(G.st<=0&&G.sp<G.tot&&G.E.length<G.max){G.st=1.5/wv.sp;const left=G.tot-G.sp,crit=Math.random()<G.crit/left;if(crit)G.crit--;spawnEnemy(wv.types[Math.random()*wv.types.length|0],crit);G.sp++}
@@ -145,12 +146,12 @@ function hostTick(dt){
 const HOST={
   stomp(d){const e=G.E.find(o=>o.id===(d.id|0));if(!e||e.hid>0||e.cd>0)return;e.cd=.3;e.hp--;
     if(e.hp>0){e.crk=1;e.daze=.6;pushK(['c',e.id,d.pid]);return}
-    G.E=G.E.filter(o=>o!==e);if(G.ph==='wave')G.kc++;G.tk++;const pts=(e.crit?3:1)*clamp(d.c|0,1,5);addScore(d.pid,pts);
-    pushK(['k',e.id,d.pid,pts,Math.round(e.x+e.w/2),Math.round(e.y+e.h/2),e.crit]);
+    G.E=G.E.filter(o=>o!==e);if(G.ph==='wave')G.kc++;G.tk++;addScore(d.pid);
+    pushK(['k',e.id,d.pid,1,Math.round(e.x+e.w/2),Math.round(e.y+e.h/2),e.crit]);
     if(e.crit&&Math.random()<.45&&G.P.length<3)G.P.push({id:G.nid++,k:Math.random()<.5?0:1,x:clamp(e.x,PIPE,W-PIPE-22),y:e.y+e.h-24,life:10})},
-  bhit(d){const B=G.B;if(!B||G.ph!=='boss'||G.bhit[d.pid])return;G.bhit[d.pid]=.3;B.hp--;B.fl=.15;addScore(d.pid,1);G.hitters[d.pid]=1;
-    if(B.hp<=0){G.B=null;for(const k in G.hitters)addScore(k,5);G.ph='live';G.pt=5;pushK(['B',Math.round(B.x+B.w/2),Math.round(B.y+B.h/2)])}else pushK(['b',d.pid])},
-  pvp(d){const v=String(d.v||'');if(!v||v===d.pid||G.imm[v])return;G.imm[v]=2;const take=Math.min(1,G.S[v]||0);addScore(v,-take);addScore(d.pid,take);pushK(['p',d.pid,v,take])},
+  bhit(d){const B=G.B;if(!B||G.ph!=='boss'||G.bhit[d.pid])return;G.bhit[d.pid]=.3;B.hp--;B.fl=.15;
+    if(B.hp<=0){G.B=null;G.ph='live';G.pt=5;pushK(['B',Math.round(B.x+B.w/2),Math.round(B.y+B.h/2)])}else pushK(['b',d.pid])},
+  pvp(d){const v=String(d.v||'');if(!v||v===d.pid||G.imm[v])return;G.imm[v]=2;pushK(['p',d.pid,v])},
   pick(d){const u=G.P.find(o=>o.id===(d.id|0));if(!u)return;G.P=G.P.filter(o=>o!==u);pushK(['u',d.pid,u.k])}};
 function claim(type,d){d.pid=me.pid;d.gid=G.gid;if(amHost())HOST[type](d);else if(room){try{room.emit(type,d).catch(()=>{})}catch(e){}}}
 /* bots in solo play report to the host directly */
@@ -160,9 +161,9 @@ function botClaim(b,type,d){d.pid=b.pid;d.gid=G.gid;HOST[type](d)}
 function encode(){return{gid:G.gid,w:G.w,ph:G.ph,pt:+G.pt.toFixed(2),tot:G.tot,sp:G.sp,kc:G.kc,tk:G.tk,v:Math.round(G.spd),bar:+G.bar.toFixed(3),n:G.n,nid:G.nid,max:G.max,
   E:G.E.map(e=>[e.id,e.t,e.crit,e.hp,Math.round(e.x),Math.round(e.y),Math.round(e.vx),Math.round(e.vy),(e.hid>0?1:0)|(e.daze>0?2:0)|(e.crk?4:0),e.side]),
   B:G.B?[Math.round(G.B.x),Math.round(G.B.y),Math.round(G.B.vx),Math.round(G.B.vy),G.B.hp,G.B.max,G.B.bl,G.B.dir]:0,
-  P:G.P.map(u=>[u.id,u.k,Math.round(u.x),Math.round(u.y)]),S:G.S,K:G.K}}
+  P:G.P.map(u=>[u.id,u.k,Math.round(u.x),Math.round(u.y)]),S:G.S,T:G.T,ck:+G.ck.toFixed(2),K:G.K}}
 function applySnap(d){const now=performance.now();
-  G.w=clamp(d.w|0,0,WAVES.length-1);G.ph=String(d.ph);G.pt=+d.pt||0;G.tot=d.tot|0;G.sp=d.sp|0;G.kc=d.kc|0;G.tk=d.tk|0;G.spd=+d.v||58;G.bar=+d.bar||0;G.n=+d.n||1;G.nid=Math.max(G.nid,d.nid|0);G.max=d.max|0||G.max;G.S=d.S&&typeof d.S==='object'?d.S:{};
+  G.w=clamp(d.w|0,0,WAVES.length-1);G.ph=String(d.ph);G.pt=+d.pt||0;G.tot=d.tot|0;G.sp=d.sp|0;G.kc=d.kc|0;G.tk=d.tk|0;G.spd=+d.v||58;G.bar=+d.bar||0;G.n=+d.n||1;G.nid=Math.max(G.nid,d.nid|0);G.max=d.max|0||G.max;G.S=d.S&&typeof d.S==='object'?d.S:{};G.T=d.T&&typeof d.T==='object'?d.T:{};G.ck=+d.ck||G.ck;
   const old=new Map(G.E.map(e=>[e.id,e])),E=[];
   for(const a of d.E||[]){const[id,t,cr,hp,x,y,vx,vy,fl,side]=a;let e=old.get(id);if(!e){e=mkEnemy(id,t|0,cr);e.x=x;e.y=y}
     e.hp=hp;e.vx=vx;e.vy=vy;e.sx=x;e.sy=y;e.svx=vx;e.svy=vy;e.at=now;e.hid=fl&1?1:0;e.daze=fl&2?.2:0;e.crk=fl&4?1:0;e.side=side|0;if(vx)e.dir=vx<0?-1:1;E.push(e)}
@@ -184,10 +185,10 @@ function fx(k){
   else if(k[0]==='c'){const e=G.E.find(o=>o.id===k[1]);if(e){e.crk=1;puff(e.x+e.w/2,e.y+8,'#C9B4FF',10,140,50)}if(k[2]===me.pid)beep(300,.12,'square',.05,-120)}
   else if(k[0]==='b'){if(G.B){G.B.fl=.15;if(k[1]===me.pid)puff(G.B.x+G.B.w/2,G.B.y+6,'#FF8A73',8,140,50)}if(k[1]===me.pid)beep(140,.12,'square',.07,-40)}
   else if(k[0]==='B'){puff(k[1],k[2],'#fff',30,260,100);SFX.win();fireworks()}
-  else if(k[0]==='p'){const[,a,v,take]=k,va=avOf(v);
+  else if(k[0]==='p'){const[,a,v]=k,va=avOf(v);
     if(va){va.sq=.45;va.stun=Math.max(va.stun,.35);va.imm=2;if(va.vy<0)va.vy=0}
-    if(v===me.pid){SFX.hit();flash(nameOf(a)+' stomped you!'+(take?' -1 point':''),C.signal)}else if(a===me.pid)flash('You stomped '+nameOf(v)+'!'+(take?' +1 point':''),C.gold);
-    const vo=va||[...ghostMap.values()].find(g=>g.pid===v);if(vo&&(v===me.pid||a===me.pid))pop(vo.x+14,vo.y-6,take?'-1':'bonk','#FF8A73');
+    if(v===me.pid){SFX.hit();flash(nameOf(a)+' stomped you!',C.signal)}else if(a===me.pid)flash('You stomped '+nameOf(v)+'!',C.gold);
+    const vo=va||[...ghostMap.values()].find(g=>g.pid===v);if(vo&&(v===me.pid||a===me.pid))pop(vo.x+14,vo.y-6,'bonk','#FF8A73');
     /* the two players involved show their names for a moment */
     for(const id of[a,v]){const o=avOf(id)||[...ghostMap.values()].find(g=>g.pid===id);if(o)o.nameT=2}}
   else if(k[0]==='u'){if(k[1]!==me.pid){const b=avOf(k[1]);if(b)applyPower(b,k[2])}}}
@@ -205,14 +206,14 @@ function touchWorld(a,isMe){
     if(onHead(a,e)){if(a.cds['e'+e.id])continue;a.cds['e'+e.id]=.35;
       a.combo=tnow-a.lastSt<1.5?Math.min(5,a.combo+1):1;a.lastSt=tnow;a.best=Math.max(a.best,a.combo);
       a.vy=-(a===me&&inp.j?560:430);a.y=e.y-a.h;a.onG=false;
-      if(isMe){if(a.combo>1)pop(a.x+14,a.y-30,'x'+a.combo+' combo!',C.gold);if(!amHost()){if(e.hp<=1)e.gone=.5;else e.crk=1}}
+      if(isMe){if(a.combo>1)pop(a.x+14,a.y-30,a.combo+' in a row!',C.gold);if(!amHost()){if(e.hp<=1)e.gone=.5;else e.crk=1}}
       emit('stomp',{id:e.id,c:a.combo})}
     else if(e.daze<=0&&knock(a,e)){if(isMe)SFX.hit()}}
   const B=G.B;if(B&&hit(a,B)){
     if(onHead(a,B)){a.vy=-600;a.y=B.y-a.h;a.onG=false;if(!a.cds.boss){a.cds.boss=.3;emit('bhit',{})}}
     else if(knock(a,B)){if(isMe)SFX.hit()}}
   for(const u of G.P){if(a.cds['u'+u.id]||!hit(a,{x:u.x,y:u.y,w:22,h:22}))continue;a.cds['u'+u.id]=1;applyPower(a,u.k);emit('pick',{id:u.id})}
-  /* stomping another player steals a point and bounces you high */
+  /* stomping another player bounces you high and squashes them for a moment */
   if(isMe)for(const o of others(a)){if(o.imm>0||o.sq>0||!hit(a,o)||!onHead(a,o)||a.cds['p'+o.pid])continue;
     a.cds['p'+o.pid]=isMe?1:4;a.vy=-760;a.y=o.y-a.h;a.onG=false;if(isMe)beep(760,.1,'triangle',.07,300);emit('pvp',{v:o.pid})}}
 function others(a){const L=[];if(a!==me&&me)L.push(me);for(const b of bots)if(b!==a)L.push(b);if(a===me)for(const g of state.ghosts)L.push(g);return L}
@@ -316,7 +317,7 @@ function drawHUD(t){
   const f=clamp(G.bar,0,1);if(f>0){rr(bx+4,12,Math.max(22,(bw-8)*f),22,11);const gg=cx.createLinearGradient(bx,0,bx+bw,0);gg.addColorStop(0,C.teal);gg.addColorStop(1,C.gold);cx.fillStyle=gg;cx.fill()}
   for(let i=1;i<5;i++){cx.fillStyle='rgba(255,255,255,.35)';cx.fillRect(bx+4+(bw-8)*i*.2-1,14,2,18)}
   txt('Go-live '+Math.floor(f*100)+'%',bx+bw/2,24,16,'#fff','center',[C.ink,4]);
-  rr(W-132,8,122,30,15);cx.fillStyle='rgba(23,32,58,.85)';cx.fill();txt('Score '+(G.S[me.pid]||0),W-71,24,16,'#fff','center');
+  rr(W-132,8,122,30,15);cx.fillStyle='rgba(23,32,58,.85)';cx.fill();txt('Squashed '+(G.S[me.pid]||0),W-71,24,16,'#fff','center');
   /* toast */
   if(state.toast&&state.toast.t>0){const a=clamp(state.toast.t/.4,0,1);cx.globalAlpha=a;cx.font='800 17px '+FD;const tw=cx.measureText(state.toast.msg).width+30;rr(W/2-tw/2,64,tw,30,15);cx.fillStyle='rgba(23,32,58,.88)';cx.fill();txt(state.toast.msg,W/2,80,17,state.toast.col||'#fff','center');cx.globalAlpha=1}
   /* banners */
@@ -466,10 +467,11 @@ function drawLobby(t){
 async function leaveRoom(){lookRand=false;netMsg='';try{if(room)await room.leave()}catch(e){}room=null;ghostMap.clear();state.peers=[];state.ghosts=[];G=null;me=null;bots=[];showTitle()}
 
 /* ---------- results: podium by score ---------- */
-function standings(){const S=G?G.S:{},rows=[{name:myName||'You',pid:myPid,me:true,sc:S[myPid]||0,lk:me}];
+function standings(){const S=G?G.S:{},T=G?G.T:{},rows=[{name:myName||'You',pid:myPid,me:true,sc:S[myPid]||0,lk:me}];
   for(const b of bots)rows.push({name:b.name,pid:b.pid,sc:S[b.pid]||0,lk:b});
   if(room)for(const g of ghostMap.values())if((g.st==='play'||g.st==='res')&&g.gid===(G&&G.gid))rows.push({name:g.name,pid:g.pid,sc:S[g.pid]!==undefined?S[g.pid]:g.fsc,lk:g});
-  return rows.sort((a,b)=>b.sc-a.sc||(a.name<b.name?-1:1))}
+  const tt=r=>T[r.pid]===undefined?9e9:T[r.pid];
+  return rows.sort((a,b)=>b.sc-a.sc||tt(a)-tt(b)||(a.name<b.name?-1:1))}
 function showResult(){state.screen='result';showRealCap();resRows=standings();const mi=resRows.findIndex(r=>r.me),blk=podiumBlocks();resBots=[];SFX.win();
   let sx=130+Math.random()*60;if(mi>=0&&mi<3)sx=(blk[mi].x0+blk[mi].x1)/2-14;
   lob={x:sx,y:(mi>=0&&mi<3?blk[mi].top:GY)-38,w:28,h:38,vx:0,vy:0,onG:true,face:1,stun:0,inv:0,respawn:0,out:false,fin:false,walk:0,em:0,emT:0,name:myName,col:myCol,hat:look.h,gl:look.g,eye:look.y,fit:look.o,pat:look.p,shoe:look.l};
@@ -480,9 +482,10 @@ function drawResults(t){
   drawRoom(t,true);
   const rows=resRows,first=rows[0]&&rows[0].me;
   const cl=['#FFC83D','#C9D1DC','#D68A4E'];podiumBlocks().forEach((b,i)=>{rr(b.x0,b.top,b.x1-b.x0,GY-b.top+8,8);cx.fillStyle=cl[i];cx.fill();cx.lineWidth=3;cx.strokeStyle=C.ink;cx.stroke();txt(String(i+1),(b.x0+b.x1)/2,b.top+26,26,C.ink,'center')});
-  txt(first?'We are live, and you top the podium!':'We are live!',W/2,60,34,'#fff','center',[C.ink,8]);
-  txt('Team squashed '+(G?G.tk:0)+' findings'+(me&&me.best>1?'   Your best combo x'+me.best:''),W/2,96,17,'#fff','center',[C.ink,5]);
-  const n=Math.min(rows.length,9);rr(12,118,226,44+n*23,12);cx.fillStyle='rgba(23,32,58,.88)';cx.fill();txt('Scores',26,138,16,C.gold,'left');
+  const top=rows[0]&&rows[0].sc>0?rows[0]:null;
+  txt(top?(first?'You squashed the most findings!':top.name+' squashed the most findings!'):'We are live!',W/2,60,34,'#fff','center',[C.ink,8]);
+  txt((top?'We are live!   ':'')+'Team squashed '+(G?G.tk:0)+' findings'+(me&&me.best>1?'   Your best combo x'+me.best:''),W/2,96,17,'#fff','center',[C.ink,5]);
+  const n=Math.min(rows.length,9);rr(12,118,226,44+n*23,12);cx.fillStyle='rgba(23,32,58,.88)';cx.fill();txt('Findings squashed',26,138,16,C.gold,'left');
   rows.slice(0,9).forEach((r,i)=>{const yy=164+i*23,col=r.me?C.gold:'#fff',nm=ord(i+1)+' '+r.name;txt(nm.length>16?nm.slice(0,15)+'.':nm,26,yy,14,col,'left');txt(String(r.sc),226,yy,14,col,'right')});
   if(rows.length>9)txt('+'+(rows.length-9)+' more',26,164+9*23,12,'#BFD0F2','left');
   const crowd=[...ghostMap.values()].filter(g=>g.st==='res');
@@ -516,7 +519,7 @@ function updateBoard(now){
   if(now-bdT<1000||!G||!me)return;bdT=now;const res=state.screen==='result';
   const rows=res?resRows:standings();
   setBoardTitle(res?'Final scores':'Live leaderboard');
-  renderBoard(rows.map(r=>({id:bdId(r.lk||r),name:r.me?(myName||'You'):r.name,col:r.lk&&r.lk.col,me:r.me?1:0,fin:false,pc:r.sc+' pt'+(r.sc===1?'':'s')})))}
+  renderBoard(rows.map(r=>({id:bdId(r.lk||r),name:r.me?(myName||'You'):r.name,col:r.lk&&r.lk.col,me:r.me?1:0,fin:false,pc:r.sc+' squashed'})))}
 
 /* ---------- loop ---------- */
 let last=performance.now(),acc=0;
