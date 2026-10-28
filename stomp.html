@@ -7,7 +7,7 @@
   <div id="cap" hidden></div>
   <div id="roombar" hidden></div>
   <div id="stage">
-    <canvas id="c" width="800" height="450" aria-label="Stomp the Findings arena"></canvas>
+    <canvas id="c" width="960" height="540" aria-label="Stomp the Findings arena"></canvas>
     <div id="ov"></div>
   </div>
   <div id="emobar" hidden></div>
@@ -34,9 +34,16 @@
  In a team room the earliest player in the game (the host) runs the findings, power-ups, waves
  and scores, and sends a snapshot ten times a second. Everyone runs their own avatar and reports
  stomps and pickups to the host, which confirms them. */
-const W=800,H=450,GY=340,FY=410,DT=1/120,GRAV=1500,RUN=210,JUMP=640;
-const PLATS=[{x0:0,x1:240,y:318},{x0:560,x1:800,y:318},{x0:0,x1:96,y:226},{x0:220,x1:580,y:226},{x0:704,x1:800,y:226},{x0:0,x1:300,y:134},{x0:500,x1:800,y:134}];
-const PIPE=58,TOPY=134;
+/* the arena is 960x540 game units so 16 players have room; the waiting room and podium stay 800x450.
+ W and H are the current screen's size and switch with the screen (see setView). */
+const AW=960,AH=540,LW=800,LH=450;let W=AW,H=AH;
+const GY=340,FY=500,DT=1/120,GRAV=1500,RUN=210,JUMP=640;
+const PLATS=[{x0:0,x1:280,y:408},{x0:680,x1:960,y:408},{x0:0,x1:110,y:316},{x0:250,x1:710,y:316},{x0:850,x1:960,y:316},{x0:0,x1:330,y:224},{x0:630,x1:960,y:224},
+  {x0:0,x1:200,y:132},{x0:380,x1:580,y:132},{x0:760,x1:960,y:132}];
+const PIPE=58;
+/* where findings come in: two top pipes, two pipes halfway down the sides, and a hatch in the ceiling */
+const SRC=[{x:PIPE-6,y:132,dir:1},{x:AW-PIPE+6,y:132,dir:-1,r:1},{x:PIPE-6,y:316,dir:1},{x:AW-PIPE+6,y:316,dir:-1,r:1},{x:AW/2,y:-10,dir:0,hatch:1}];
+function setView(arena){W=arena?AW:LW;H=arena?AH:LH}
 const WAVES=[
   {name:'UAT Round 1',col:'#FFC83D',types:[0],n:8,crit:0,sp:1,
    head:'Typos are crawling out of the findings pipes.',how:'Land on a finding to squash it. Quick stomps in a row build a combo.'},
@@ -48,7 +55,7 @@ const WAVES=[
    head:'Everything is loose and moving fast. This is the last push before go-live.',how:'Stomping another player bounces you high, but watch out for your own head.'}];
 const LIVE_CAP={name:'Go live!',col:'#12A594',head:'UAT is closed and the eCOA system is live.',how:'Great teamwork.'};
 const INTRO_CAP={name:'Stomp the Findings',col:'#FFC83D',head:'UAT findings are loose on the platforms. Squash them together and take the study live.',how:'Jump on findings to stomp them. Whoever squashes the most findings wins.'};
-const TYPOS=['teh','recieve','pateint','diarry','qestion','scroe','paine'];
+const TYPOS=['teh','adn','hte','taht','wiht','yuor'];
 const BOTS=[['Priya','#FF7AA8'],['Marco','#FFB02E'],['Aiko','#7B61FF'],['Lena','#2EC4B6'],['Sam','#FF6B4A']];
 
 /* ---------- state ---------- */
@@ -95,9 +102,9 @@ function knock(a,from){if(a.inv>0||a.shield>0||a.stun>0)return false;a.stun=1;a.
 /* Everyone sees the same findings, but each player has their own copy: squashing one removes it
  from your screen only, so every player can score every finding once. A finding leaves for good
  when it reaches a bottom pipe, when everyone has squashed it, or when the wave's time runs out. */
-function mkEnemy(id,t,crit){const w=crit?44:30,h=crit?38:26;return{id,t,crit:crit?1:0,w,h,x:0,y:0,py:0,vx:0,vy:0,dir:1,onG:false,hid:0,side:0,gone:0,by:{},hits:{}}}
+function mkEnemy(id,t,crit){const w=crit?58:42,h=crit?41:30;return{id,t,crit:crit?1:0,w,h,x:0,y:0,py:0,vx:0,vy:0,dir:1,onG:false,hid:0,src:0,gone:0,by:{},hits:{}}}
 function stepEnemy(e,dt){
-  if(e.hid>0){e.hid-=dt;if(e.hid<=0){e.hid=0;const L=e.side===0;e.x=L?PIPE-6:W-PIPE+6-e.w;e.y=TOPY-e.h;e.py=e.y;e.vy=0;e.dir=L?1:-1}return}
+  if(e.hid>0){e.hid-=dt;if(e.hid<=0){e.hid=0;const s=SRC[e.src]||SRC[0];e.x=s.hatch?s.x-e.w/2:s.r?s.x-e.w:s.x;e.y=s.y-e.h;e.py=e.y;e.vy=0;e.dir=s.dir||(Math.random()<.5?-1:1)}return}
   e.vx=e.dir*G.spd*(e.crit?.85:1);
   e.vy=Math.min(e.vy+GRAV*dt,800);e.py=e.y;e.x+=e.vx*dt;e.y+=e.vy*dt;land(e);
   if(e.onG&&e.y+e.h>=FY&&((e.dir<0&&e.x<PIPE-8)||(e.dir>0&&e.x+e.w>W-PIPE+8)))e.out=1;
@@ -114,9 +121,9 @@ function amHost(){if(!room)return true;if(!G)return false;for(const g of ghostMa
   /* until everyone's presence says they are in the game, trust who was earliest in the waiting room */
   return !(state.t<2&&G.hostJ<myJoin)}
 function startWave(i){const wv=WAVES[i];G.w=i;G.n=playerCount();G.tot=wv.n;G.crit=wv.crit;G.sp=0;G.spd=58*wv.sp;G.max=5+i;G.ph='ban';G.pt=i?3.5:6;G.st=0;
-  /* the go-live bar fills when the team has squashed about two thirds of every player's copies */
-  if(i===0)G.goal=Math.max(1,Math.round(.65*G.n*WAVES.reduce((s,w)=>s+w.n,0)))}
-function spawnEnemy(t,crit){const e=mkEnemy(G.nid++,t,crit);e.hid=.5;e.side=e.id%2;G.E.push(e);return e}
+  /* the go-live bar fills when the team has squashed about half of every player's copies */
+  if(i===0)G.goal=Math.max(1,Math.round(.5*G.n*WAVES.reduce((s,w)=>s+w.n,0)))}
+function spawnEnemy(t,crit){const e=mkEnemy(G.nid++,t,crit);e.hid=.5;let s;do s=Math.random()*SRC.length|0;while(s===G.lastSrc);G.lastSrc=e.src=s;G.E.push(e);return e}
 /* your score is the number of findings you squashed; ties go to whoever got there first */
 function addScore(pid){G.S[pid]=(G.S[pid]||0)+1;G.T[pid]=+G.ck.toFixed(2)}
 function pushK(k){G.K.push(k);fx(k)}
@@ -151,13 +158,13 @@ function botClaim(b,type,d){d.pid=b.pid;d.gid=G.gid;HOST[type](d)}
 
 /* ---------- snapshots ---------- */
 function encode(){return{gid:G.gid,w:G.w,ph:G.ph,pt:+G.pt.toFixed(2),tot:G.tot,sp:G.sp,tk:G.tk,goal:G.goal,v:Math.round(G.spd),bar:+G.bar.toFixed(3),n:G.n,nid:G.nid,max:G.max,
-  E:G.E.map(e=>[e.id,e.t,e.crit,Math.round(e.x),Math.round(e.y),Math.round(e.vx),Math.round(e.vy),e.hid>0?1:0,e.side]),
+  E:G.E.map(e=>[e.id,e.t,e.crit,Math.round(e.x),Math.round(e.y),Math.round(e.vx),Math.round(e.vy),e.hid>0?1:0,e.src]),
   P:G.P.map(u=>[u.id,u.k,Math.round(u.x),Math.round(u.y)]),S:G.S,T:G.T,ck:+G.ck.toFixed(2),K:G.K}}
 function applySnap(d){const now=performance.now();
   G.w=clamp(d.w|0,0,WAVES.length-1);G.ph=String(d.ph);G.pt=+d.pt||0;G.tot=d.tot|0;G.sp=d.sp|0;G.tk=d.tk|0;G.goal=d.goal|0||G.goal;G.spd=+d.v||58;G.bar=+d.bar||0;G.n=+d.n||1;G.nid=Math.max(G.nid,d.nid|0);G.max=d.max|0||G.max;G.S=d.S&&typeof d.S==='object'?d.S:{};G.T=d.T&&typeof d.T==='object'?d.T:{};G.ck=+d.ck||G.ck;
   const old=new Map(G.E.map(e=>[e.id,e])),E=[];
-  for(const a of d.E||[]){const[id,t,cr,x,y,vx,vy,fl,side]=a;let e=old.get(id);if(!e){e=mkEnemy(id,t|0,cr);e.x=x;e.y=y}
-    e.vx=vx;e.vy=vy;e.sx=x;e.sy=y;e.svx=vx;e.svy=vy;e.at=now;e.hid=fl&1?1:0;e.side=side|0;if(vx)e.dir=vx<0?-1:1;E.push(e)}
+  for(const a of d.E||[]){const[id,t,cr,x,y,vx,vy,fl,src]=a;let e=old.get(id);if(!e){e=mkEnemy(id,t|0,cr);e.x=x;e.y=y}
+    e.vx=vx;e.vy=vy;e.sx=x;e.sy=y;e.svx=vx;e.svy=vy;e.at=now;e.hid=fl&1?1:0;e.src=src|0;if(vx)e.dir=vx<0?-1:1;E.push(e)}
   G.E=E;
   G.P=(d.P||[]).map(([id,k,x,y])=>({id,k,x,y}));
   for(const k of d.K||[])fx(k)}
@@ -222,41 +229,50 @@ function botThink(b,dt){
 function drawWrapped(x,w,fn){fn(x);if(x<0)fn(x+W);else if(x+w>W)fn(x-W)}
 function drawArena(t){
   const g=cx.createLinearGradient(0,0,0,FY);g.addColorStop(0,'#CFF1E7');g.addColorStop(1,'#EAF7F2');cx.fillStyle=g;cx.fillRect(0,0,W,H);
-  cx.fillStyle='rgba(18,165,148,.06)';for(let i=0;i<9;i++)cx.fillRect(i*100+24,0,3,FY);
+  cx.fillStyle='rgba(18,165,148,.06)';for(let i=0;i<W/100;i++)cx.fillRect(i*100+24,0,3,FY);
   /* platforms */
   for(const p of PLATS){rr(p.x0-4,p.y,p.x1-p.x0+8,14,6);cx.fillStyle=C.ink;cx.fill();cx.fillStyle=C.tealL;cx.fillRect(p.x0,p.y+2,p.x1-p.x0,3);
     cx.fillStyle='rgba(255,255,255,.12)';for(let x=p.x0+18;x<p.x1-6;x+=34)cx.fillRect(x,p.y+7,14,3)}
   /* floor */
   cx.fillStyle=C.teal;cx.fillRect(0,FY,W,H-FY);cx.fillStyle=C.tealL;cx.fillRect(0,FY,W,7);
-  cx.strokeStyle='rgba(11,110,102,.35)';cx.lineWidth=2;for(let i=0;i<9;i++){cx.beginPath();cx.moveTo(i*100+20,FY+7);cx.lineTo(i*100-10,H);cx.stroke()}
+  cx.strokeStyle='rgba(11,110,102,.35)';cx.lineWidth=2;for(let i=0;i<W/100+1;i++){cx.beginPath();cx.moveTo(i*100+20,FY+7);cx.lineTo(i*100-10,H);cx.stroke()}
   /* findings pipes: top ones feed findings in, bottom ones send them back up */
   const pipe=(x,y,right,lab)=>{const w=PIPE,h=40,mx=right?x+w-10:x;rr(x,y,w,h,6);cx.fillStyle=C.violet;cx.fill();rr(mx-4,y-5,14,h+10,5);cx.fillStyle=C.violetL;cx.fill();cx.lineWidth=3;cx.strokeStyle=C.ink;rr(x,y,w,h,6);cx.stroke();rr(mx-4,y-5,14,h+10,5);cx.stroke();
     cx.fillStyle='rgba(255,255,255,.25)';cx.fillRect(x+6,y+6,w-20,5);if(lab)txt(lab,x+w/2+(right?-6:6),y-14,11,'#51617F','center')};
-  pipe(0,TOPY-40,true);pipe(W-PIPE,TOPY-40,false);pipe(0,FY-40,true);pipe(W-PIPE,FY-40,false)}
+  for(const y of[132,316,FY]){pipe(0,y-40,true);pipe(W-PIPE,y-40,false)}
+  /* ceiling hatch */
+  rr(W/2-36,-8,72,22,6);cx.fillStyle=C.violet;cx.fill();cx.lineWidth=3;cx.strokeStyle=C.ink;cx.stroke();cx.fillStyle=C.ink;cx.fillRect(W/2-24,8,48,4)}
 
 function drawFinding(e,t){if(e.hid>0||e.gone>0||me.done.has(e.id))return;drawWrapped(e.x,e.w,x=>finding(e,x,e.y,t))}
+/* findings are beetles: typos are amber, broken skip logic blue, silent alarms red, critical ones big and purple */
+const BUGC=['#F2A33A','#3FA9F5','#E5484D'];
 function finding(e,x,y,t){
-  const s=e.w/30,step=Math.sin(t*12+e.id*1.7),d=e.dir||1,crk=!!me.hits[e.id];
-  cx.save();cx.translate(x+e.w/2,y+e.h);cx.scale(s,s);
-  cx.fillStyle='rgba(23,32,58,.18)';cx.beginPath();cx.ellipse(0,1,13,3,0,0,6.3);cx.fill();
-  cx.strokeStyle=C.ink;cx.lineWidth=2.5;cx.lineCap='round';cx.beginPath();cx.moveTo(-6,-5);cx.lineTo(-7+step*3,0);cx.moveTo(6,-5);cx.lineTo(7-step*3,0);cx.stroke();
-  const body=e.crit?(crk?'#C2A8FF':'#9B6BFF'):['#FFF4D6','#D9F0FF','#FFE3E3'][e.t];
-  cx.lineWidth=2;
-  if(e.t===2){/* "alarm will not fire": a clock with silent bells */
-    cx.fillStyle='#C9D1DC';for(const sx of[-8,8]){cx.beginPath();cx.arc(sx,-22,4.5,Math.PI,0);cx.fill();cx.stroke()}
-    cx.beginPath();cx.arc(0,-13,11,0,6.3);cx.fillStyle=body;cx.fill();cx.stroke()}
-  else{rr(-15,-25,30,21,5);cx.fillStyle=body;cx.fill();cx.stroke()}
-  /* eyes look the way it walks */
-  const ey=e.t===2?-15:-18;for(const ex of[-5,5]){cx.beginPath();cx.arc(ex,ey,3.4,0,6.3);cx.fillStyle='#fff';cx.fill();cx.lineWidth=1.2;cx.stroke();cx.beginPath();cx.arc(ex+d*1.3,ey+.4,1.7,0,6.3);cx.fillStyle=C.ink;cx.fill()}
-  if(e.crit){cx.strokeStyle=C.ink;cx.lineWidth=2;cx.beginPath();cx.moveTo(-9,ey-6);cx.lineTo(-2,ey-3.5);cx.moveTo(9,ey-6);cx.lineTo(2,ey-3.5);cx.stroke()}
-  if(e.t===0){cx.font='800 7px '+FD;cx.textAlign='center';cx.textBaseline='middle';cx.fillStyle=e.crit?'#fff':C.ink;cx.fillText(TYPOS[e.id%TYPOS.length],0,-9.5);
-    cx.strokeStyle=C.signal;cx.lineWidth=1;cx.beginPath();for(let i=0;i<=8;i++)cx.lineTo(-8+i*2,-6+(i%2?1:-.4));cx.stroke()}
-  else if(e.t===1){cx.strokeStyle=e.crit?'#fff':'#2F8CFF';cx.lineWidth=1.6;cx.beginPath();cx.arc(0,-9,4,Math.PI*.9,Math.PI*2.4);cx.stroke();
-    cx.fillStyle=C.signal;cx.beginPath();cx.moveTo(4,-11);cx.lineTo(7,-8);cx.lineTo(2,-7);cx.fill()}
-  else{cx.strokeStyle=C.signal;cx.lineWidth=1.6;cx.beginPath();cx.moveTo(-4,-10);cx.lineTo(4,-5);cx.moveTo(4,-10);cx.lineTo(-4,-5);cx.stroke()}
-  if(crk){cx.strokeStyle=C.ink;cx.lineWidth=1.3;cx.beginPath();cx.moveTo(-13,-24);cx.lineTo(-8,-18);cx.lineTo(-11,-12);cx.moveTo(12,-6);cx.lineTo(8,-11);cx.stroke()}
+  const s=e.w/34,step=Math.sin(t*14+e.id*1.7),d=e.dir||1,crk=!!me.hits[e.id];
+  const body=e.crit?(crk?'#B79CFF':'#8B5CF6'):BUGC[e.t],dark=mix(e.crit?'#8B5CF6':BUGC[e.t],'#000000',.35);
+  cx.save();cx.translate(x+e.w/2,y+e.h);cx.scale(s*d,s);
+  cx.fillStyle='rgba(23,32,58,.2)';cx.beginPath();cx.ellipse(0,1,16,3,0,0,6.3);cx.fill();
+  /* six legs scuttling */
+  cx.strokeStyle=C.ink;cx.lineWidth=2;cx.lineCap='round';cx.beginPath();
+  for(let i=-1;i<=1;i++){const k=(i%2?step:-step)*3;cx.moveTo(i*8,-7);cx.lineTo(i*8-3+k,0);cx.moveTo(i*8+2,-7);cx.lineTo(i*8+5-k,-1)}cx.stroke();
+  /* antennae */
+  cx.lineWidth=1.6;cx.beginPath();cx.moveTo(14,-14);cx.quadraticCurveTo(18,-22,23,-23+step);cx.moveTo(12,-15);cx.quadraticCurveTo(13,-24,18,-26-step);cx.stroke();
+  if(e.crit){cx.fillStyle=C.ink;cx.beginPath();cx.moveTo(-6,-21);cx.lineTo(-3,-27);cx.lineTo(0,-21);cx.moveTo(2,-21);cx.lineTo(5,-27);cx.lineTo(8,-21);cx.fill()}
+  /* shell */
+  cx.beginPath();cx.ellipse(-2,-12,14,10,0,0,6.3);cx.fillStyle=body;cx.fill();cx.lineWidth=2;cx.strokeStyle=C.ink;cx.stroke();
+  cx.strokeStyle=dark;cx.lineWidth=1.5;cx.beginPath();cx.moveTo(-2,-22);cx.lineTo(-2,-3);cx.stroke();
+  cx.fillStyle='rgba(255,255,255,.35)';cx.beginPath();cx.ellipse(-7,-17,4,2.2,-.4,0,6.3);cx.fill();
+  if(crk){cx.strokeStyle=C.ink;cx.lineWidth=1.3;cx.beginPath();cx.moveTo(-12,-17);cx.lineTo(-7,-12);cx.lineTo(-10,-7);cx.moveTo(6,-19);cx.lineTo(3,-13);cx.stroke()}
+  /* head and eyes */
+  cx.beginPath();cx.arc(12,-11,6.5,0,6.3);cx.fillStyle=dark;cx.fill();cx.lineWidth=2;cx.strokeStyle=C.ink;cx.stroke();
+  cx.beginPath();cx.arc(14,-12.5,2.8,0,6.3);cx.fillStyle='#fff';cx.fill();cx.beginPath();cx.arc(15,-12.3,1.4,0,6.3);cx.fillStyle=C.ink;cx.fill();
+  if(e.crit){cx.strokeStyle=C.ink;cx.lineWidth=1.8;cx.beginPath();cx.moveTo(11,-17);cx.lineTo(17,-15);cx.stroke()}
   cx.restore();
-  if(e.crit){for(let i=0;i<2;i++){cx.beginPath();cx.arc(x+e.w/2-6+i*12,y-8,4,0,6.3);cx.fillStyle=i<(crk?1:2)?'#9B6BFF':'rgba(255,255,255,.7)';cx.fill();cx.lineWidth=1.5;cx.strokeStyle=C.ink;cx.stroke()}}}
+  /* the mark on its back, never mirrored */
+  const mx=x+e.w/2-2*s*d,my=y+e.h-12*s;
+  if(e.t===0)txt(TYPOS[e.id%TYPOS.length],mx,my,Math.round(8*s),'#fff','center',[C.ink,2.5]);
+  else if(e.t===1){cx.strokeStyle='#fff';cx.lineWidth=2;cx.beginPath();cx.arc(mx,my,4*s,Math.PI*.9,Math.PI*2.4);cx.stroke();cx.fillStyle='#fff';cx.beginPath();cx.moveTo(mx+4*s,my-2*s);cx.lineTo(mx+7*s,my+1*s);cx.lineTo(mx+2*s,my+2*s);cx.fill()}
+  else{cx.fillStyle='#fff';cx.beginPath();cx.arc(mx,my,4*s,Math.PI,0);cx.lineTo(mx+4*s,my+3*s);cx.lineTo(mx-4*s,my+3*s);cx.fill();cx.strokeStyle=C.ink;cx.lineWidth=1.5;cx.beginPath();cx.moveTo(mx-5*s,my-4*s);cx.lineTo(mx+5*s,my+4*s);cx.stroke()}
+  if(e.crit){for(let i=0;i<2;i++){cx.beginPath();cx.arc(x+e.w/2-6+i*12,y-9,4,0,6.3);cx.fillStyle=i<(crk?1:2)?'#8B5CF6':'rgba(255,255,255,.7)';cx.fill();cx.lineWidth=1.5;cx.strokeStyle=C.ink;cx.stroke()}}}
 
 function drawPower(u,t){const bob=Math.sin(t*4+u.id)*3,x=u.x,y=u.y+bob;
   cx.fillStyle='rgba(255,255,255,.5)';cx.beginPath();cx.arc(x+11,y+11,15,0,6.3);cx.fill();
@@ -267,10 +283,10 @@ function drawPower(u,t){const bob=Math.sin(t*4+u.id)*3,x=u.x,y=u.y+bob;
 
 function drawAv(a,t,isYou){drawWrapped(a.x,a.w,x=>{const ox=a.x;a.x=x;avOne(a,t,isYou);a.x=ox})}
 function avOne(a,t,isYou){const fx=a.x+14,fy=a.y+38;
-  if(a.shield>0){cx.globalAlpha=Math.min(.6,a.shield*.5);cx.beginPath();cx.arc(fx,a.y+17,27,0,6.3);cx.lineWidth=4;cx.strokeStyle=C.gold;cx.stroke();cx.fillStyle='rgba(255,200,61,.15)';cx.fill();cx.globalAlpha=1}
+  if(a.shield>0){cx.globalAlpha=Math.min(.6,a.shield*.5)*(isYou?1:.5);cx.beginPath();cx.arc(fx,a.y+17,27,0,6.3);cx.lineWidth=4;cx.strokeStyle=C.gold;cx.stroke();cx.fillStyle='rgba(255,200,61,.15)';cx.fill();cx.globalAlpha=1}
   /* drawRunner flickers invulnerable avatars and wobbles stunned ones; here they are simply see-through or squashed */
   const inv=a.inv,stun=a.stun,out=a.out;a.inv=0;a.stun=0;a.out=inv>0&&stun<=0;
-  if(a.sq>0||stun>0){cx.save();cx.translate(fx,fy);cx.scale(a.sq>0?1.3:1.08,a.sq>0?.5:.8);cx.translate(-fx,-fy);drawRunner(a,t,isYou,true);cx.restore()}else drawRunner(a,t,isYou,true);
+  if(a.sq>0||stun>0){cx.save();cx.translate(fx,fy);cx.scale(a.sq>0?1.3:1.08,a.sq>0?.5:.8);cx.translate(-fx,-fy);drawRunner(a,t,isYou,isYou);cx.restore()}else drawRunner(a,t,isYou,isYou);
   a.inv=inv;a.stun=stun;a.out=out;
   if(stun>0&&a.sq<=0)for(let i=0;i<2;i++){const an=t*2.5+i*3.1;txt('*',fx+Math.cos(an)*12,a.y+4+Math.sin(an)*3,14,C.gold,'center',[C.ink,3])}
   if(a.coffee>0&&Math.abs(a.vx)>40){cx.strokeStyle='rgba(122,78,45,.5)';cx.lineWidth=2;for(let i=0;i<3;i++){const ly=a.y+10+i*9,lx=fx-(a.face||1)*(20+i*3);cx.beginPath();cx.moveTo(lx,ly);cx.lineTo(lx-(a.face||1)*12,ly);cx.stroke()}}}
@@ -302,9 +318,9 @@ function drawKeys(t,x0,y0){const cyc=t%4.8,arrows=cyc<2.4,ph=cyc%2.4,pL=ph>.15&&
   txt('Jump',x0+14,y0+70,15,'#fff','left');keycap(x0+62,y0+54,120,pJ,inp.j,(px,py)=>txt('SPACE',px,py+1,14,C.ink,'center'));txt('or W / Up',x0+190,y0+70,12,'#BFD0F2','left')}
 
 /* ---------- starting and running a game ---------- */
-const SPAWNS=[[120,FY],[680,FY],[300,FY],[500,FY],[60,318],[740,318],[180,318],[620,318],[400,226],[300,226],[500,226],[40,226],[760,226],[150,134],[650,134],[240,FY]];
+const SPAWNS=[[140,FY],[820,FY],[340,FY],[620,FY],[480,FY],[80,408],[880,408],[200,408],[760,408],[330,316],[630,316],[480,316],[120,224],[840,224],[250,224],[710,224]];
 function startGame(gid){
-  G=newGame(gid);G.pops=[];parts=[];state.t=0;state.toast=null;state.endAt=0;state.lastPh='';state.lastW=-1;
+  setView(true);G=newGame(gid);G.pops=[];parts=[];state.t=0;state.toast=null;state.endAt=0;state.lastPh='';state.lastW=-1;
   me=mkAv(myName||'You',myCol,look,myPid);me.name=myName||'You';
   const ids=[{j:myJoin,me:1}].concat([...ghostMap.values()].filter(g=>g.st==='lobby').map(g=>({j:g.j||9e15}))).sort((a,b)=>a.j-b.j),rk=Math.max(0,ids.findIndex(o=>o.me));
   G.hostJ=ids[0].j;G.np=ids.length;const sp=SPAWNS[rk%SPAWNS.length];me.x=sp[0]-14;me.y=me.py=sp[1]-38;
@@ -488,8 +504,7 @@ function updateBoard(now){
 /* ---------- loop ---------- */
 let last=performance.now(),acc=0;
 function frame(now){
-  fitCanvas(W,H);
-  const scr=state.screen;
+  const scr=state.screen;setView(scr==='play'||scr==='title');fitCanvas(W,H);
   {const eb=document.getElementById('exitg');if(eb)eb.hidden=scr==='title'}
   LB.hidden=scr!=='lobby'&&scr!=='result';RB.hidden=!(scr==='lobby'&&room);EB.hidden=scr!=='lobby';
   {const on=scr==='result'||(scr==='play'&&G&&(G.ph==='ban'||G.ph==='live'));if(BD.hidden===on)BD.hidden=!on;if(!on&&bdRows.size){clearBoard();bdT=0}else if(on)updateBoard(now)}
@@ -508,11 +523,11 @@ function frame(now){
       cx.save();
       drawArena(t);
       for(const u of G.P)if(!me.cds['u'+u.id])drawPower(u,t);
-      for(const e of G.E)drawFinding(e,t);
       for(const o of bots.concat(state.ghosts)){o.nameT=Math.max(0,(o.nameT||0)-dt);let dx=Math.abs(o.x-me.x);if(dx>W/2)dx=W-dx;o.nameA=Math.max(clamp(1.4-Math.hypot(dx,o.y-me.y)/60,0,1),clamp(o.nameT,0,1))}
       for(const b of bots)drawAv(b,t,false);
       for(const g of state.ghosts)drawAv(g,t,false);
       drawAv(me,t,true);
+      for(const e of G.E)drawFinding(e,t);
       drawParts();drawPops(dt);cx.restore();drawHUD(t)}
   }else if(scr==='lobby'){stepLobby(dt);drawLobby(t)}
   else if(scr==='result'){stepLobby(dt);stepParts(dt);drawResults(t)}

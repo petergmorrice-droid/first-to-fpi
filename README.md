@@ -13,9 +13,9 @@ A small library of multiplayer browser games where everyone plays as the same li
 
 ### Stomp the Findings
 
-A single-screen stomp arena for up to 16 players, in the style of the arcade Mario Bros.
+A single-screen stomp arena for up to 16 players, in the style of the arcade Mario Bros. The arena is 960 by 540 game units with four tiers of platforms, and other players are drawn see-through so your own avatar stands out.
 
-- UAT findings (typos, broken skip logic, "alarm will not fire") walk the platforms. Land on one to squash it. Touch one from the side and you are knocked down for a second.
+- UAT findings are bugs (amber typos, blue broken skip logic, red "alarm will not fire") that come out of five places: two top pipes, two side pipes and a ceiling hatch. They walk the platforms, drawn in front of every player so they are always visible. Land on one to squash it. Touch one from the side and you are knocked down for a second.
 - Everyone has their own copy of each finding. Squashing one removes it from your screen only, so every player can score every finding once. A finding leaves for good when it reaches a bottom pipe, when everyone has squashed it, or when the wave ends.
 - Whoever squashes the most findings wins. Critical findings are big and purple and take two stomps from each player. Ties go to whoever reached that number first.
 - Stomping another player bounces you high and squashes them for a moment. It doesn't change anyone's score.
