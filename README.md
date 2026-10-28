@@ -16,14 +16,14 @@ A small library of multiplayer browser games where everyone plays as the same li
 A single-screen stomp arena for up to 16 players, in the style of the arcade Mario Bros.
 
 - UAT findings (typos, broken skip logic, "alarm will not fire") walk the platforms. Land on one to squash it. Touch one from the side and you are knocked down for a second.
-- Critical findings are big and purple and take two stomps.
-- Whoever squashes the most findings wins. A critical finding counts once, for the player who lands the second stomp. Ties go to whoever reached that number first.
+- Everyone has their own copy of each finding. Squashing one removes it from your screen only, so every player can score every finding once. A finding leaves for good when it reaches a bottom pipe, when everyone has squashed it, or when the wave ends.
+- Whoever squashes the most findings wins. Critical findings are big and purple and take two stomps from each player. Ties go to whoever reached that number first.
 - Stomping another player bounces you high and squashes them for a moment. It doesn't change anyone's score.
-- Four waves, each faster than the last: UAT Round 1, UAT Round 2, Site Training and Go-Live. A Protocol Amendment boss ends the last wave, and its health grows with the number of players.
+- Four timed waves of 45 seconds, each faster than the last: UAT Round 1, UAT Round 2, Site Training and Go-Live. When the last wave ends, the study goes live and the podium ranks players by findings squashed.
 - Power-ups: coffee (speed boost) and a compliance coin (short shield).
-- A shared go-live bar fills as the team stomps. Squashing the amendment takes the study live. Boss stomps don't score, and the podium ranks players by findings squashed.
+- A shared go-live bar fills as the whole team squashes findings.
 
-In a team room the earliest player in the game is the host. The host runs the findings, boss, power-ups, waves and scores, and sends a snapshot ten times a second. Each player runs their own avatar and reports stomps and pickups to the host. If the host leaves, the next earliest player carries on from the last snapshot. Solo play adds five bots.
+In a team room the earliest player in the game is the host. The host runs the findings, power-ups, waves and scores, and sends a snapshot ten times a second. Each player runs their own avatar and reports stomps and pickups to the host, which confirms them. If the host leaves, the next earliest player carries on from the last snapshot. Solo play adds five bots.
 
 ## Shared code
 
